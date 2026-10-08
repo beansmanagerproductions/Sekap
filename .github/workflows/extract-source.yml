@@ -26,6 +26,12 @@ jobs:
           rm -rf app
           mkdir app
           unzip -q "beans-&-espresso-manager.zip" -d app
+          echo "=== TYPES ==="
+          cat app/src/types/index.ts
+          echo "=== TABLE REFERENCES ==="
+          grep -RhoE "from\([[:space:]]*[\x27\x22][^\x27\x22]+[\x27\x22]" app/src | sort -u || true
+          echo "=== DATABASE ==="
+          cat app/src/services/database.ts
           echo "=== package.json ==="
           cat app/package.json
           echo "=== .env.example ==="
