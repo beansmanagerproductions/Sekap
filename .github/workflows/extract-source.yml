@@ -53,6 +53,56 @@ jobs:
           echo "=== AuthContext.tsx ==="
           cat app/src/context/AuthContext.tsx
 
+      - name: Install Beans & Espresso Manager icon and PWA metadata
+        working-directory: app
+        run: |
+          set -e
+          mkdir -p public
+          cat > public/beans-espresso-icon.svg <<'EOF'
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6F3E22"/>
+      <stop offset="1" stop-color="#24130D"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#g)"/>
+  <circle cx="256" cy="256" r="166" fill="#F4E7D7"/>
+  <path d="M256 105c-72 0-126 65-126 151s54 151 126 151 126-65 126-151-54-151-126-151Z" fill="#4A2415"/>
+  <path d="M268 119c-38 58-43 124-25 185 15 49 11 81-10 101 49-11 88-64 88-149 0-62-20-108-53-137Z" fill="#8B542F"/>
+  <path d="M207 174c-25 34-32 80-23 125 8 38 5 66-9 86 34-18 54-59 54-113 0-39-8-72-22-98Z" fill="#C47A42"/>
+  <path d="M142 356c37 30 78 45 114 45 48 0 89-18 116-52-24 56-68 87-116 87-49 0-91-28-114-80Z" fill="#E8CBAE"/>
+</svg>
+EOF
+          if command -v convert >/dev/null 2>&1; then
+            convert -background none public/beans-espresso-icon.svg -resize 192x192 public/icon-192.png
+            convert -background none public/beans-espresso-icon.svg -resize 512x512 public/icon-512.png
+          else
+            echo "ImageMagick not available; SVG icon remains available."
+          fi
+          cat > public/manifest.webmanifest <<'EOF'
+{
+  "name": "Beans & Espresso Manager",
+  "short_name": "Beans Manager",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#24130D",
+  "theme_color": "#4A2415",
+  "description": "Manajemen produksi, stok, penjualan espresso dan laporan coffee shop.",
+  "icons": [
+    {"src":"./icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"./icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"},
+    {"src":"./beans-espresso-icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}
+  ]
+}
+EOF
+          if ! grep -q 'manifest.webmanifest' index.html; then
+            sed -i 's#</head>#<link rel="icon" href="./beans-espresso-icon.svg" type="image/svg+xml"><link rel="manifest" href="./manifest.webmanifest"><meta name="theme-color" content="#4A2415"></head>#' index.html
+          fi
+          cp public/beans-espresso-icon.svg public/favicon.svg
+          echo "=== ICON/PWA ==="
+          ls -lh public/beans-espresso-icon.svg public/favicon.svg public/icon-192.png public/icon-512.png public/manifest.webmanifest 2>/dev/null || true
+
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
