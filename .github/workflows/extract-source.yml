@@ -34,14 +34,8 @@ jobs:
           cat app/src/main.tsx
           echo "=== VITE ==="
           cat app/vite.config.ts
-          echo "=== DIST ==="
-          # Force relative asset URLs for GitHub Pages project hosting.
+          echo "=== VITE ==="
           sed -i "/return {/a\\    base: './'," app/vite.config.ts
-          echo "=== BUILD CHECK ==="
-          test -d app/dist || (echo "dist missing"; exit 1)
-          test -f app/dist/index.html || (echo "dist/index.html missing"; exit 1)
-          echo "=== DIST ==="
-          find app/dist -maxdepth 2 -type f -print | sort
           echo "=== TYPES ==="
           cat app/src/types/index.ts
           echo "=== TABLE REFERENCES ==="
@@ -77,13 +71,13 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
-          
-          - name: Verify web build
-            working-directory: app
-            run: |
-              set -e
-              test -f dist/index.html
-              find dist -maxdepth 2 -type f -print | sort
+
+      - name: Verify web build
+        working-directory: app
+        run: |
+          set -e
+          test -f dist/index.html
+          find dist -maxdepth 2 -type f -print | sort
           
 
       - name: Configure Pages
