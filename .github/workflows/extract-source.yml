@@ -78,7 +78,12 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
           
-          # GitHub Pages serves the project under /Sekap/; make asset URLs relative-safe.
+          - name: Verify web build
+            working-directory: app
+            run: |
+              set -e
+              test -f dist/index.html
+              find dist -maxdepth 2 -type f -print | sort
           
 
       - name: Configure Pages
