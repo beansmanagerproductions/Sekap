@@ -35,9 +35,11 @@ jobs:
           echo "=== VITE ==="
           cat app/vite.config.ts
           echo "=== DIST ==="
+          echo "=== BUILD CHECK ==="
+          test -d app/dist || (echo "dist missing"; exit 1)
+          test -f app/dist/index.html || (echo "dist/index.html missing"; exit 1)
+          echo "=== DIST ==="
           find app/dist -maxdepth 2 -type f -print | sort
-          echo "=== DIST INDEX ==="
-          cat app/dist/index.html
           echo "=== TYPES ==="
           cat app/src/types/index.ts
           echo "=== TABLE REFERENCES ==="
@@ -73,6 +75,9 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
+          
+          # GitHub Pages serves the project under /Sekap/; make asset URLs relative-safe.
+          
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
