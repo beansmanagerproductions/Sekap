@@ -1,22 +1,94 @@
 from pathlib import Path
-import re
 root=Path("app")
-files=list(root.rglob("*.tsx"))+list(root.rglob("*.ts"))
-files=[p for p in files if "node_modules" not in p.parts]
-text="\n".join(p.read_text(errors="ignore") for p in files)
-# Create a standalone reusable module; app integration is injected into the most likely dashboard file.
-mod=root/"src"/"espressoSales.ts"
-mod.parent.mkdir(parents=True,exist_ok=True)
-mod.write_text("""import { supabase } from './lib/supabase';
-export async function recordEspressoSale(shopId:string,userId:string,liters:number,price:number,notes?:string){
-  const {data,error}=await supabase.rpc('record_espresso_sale',{p_shop_id:shopId,p_user_id:userId,p_quantity_liters:liters,p_price_per_liter:price,p_notes:notes??null});
-  if(error) throw error; return data;
-}
-export async function getEspressoSales(shopId:string){
-  const {data,error}=await supabase.from('sales').select('*').eq('shop_id',shopId).order('sold_at',{ascending:false});
-  if(error) throw error; return data??[];
-}
-export function espressoIncome(rows:any[]){return rows.reduce((s,r)=>s+Number(r.total_amount||0),0);}
-""")
-# Add a DB migration executed by CI before build.
-print("PATCH_READY")
+
+def edit(rel, f):
+    p=root/rel; s=p.read_text(); n=f(s); p.write_text(n); print(rel, n!=s)
+
+# Conversion standard: 1 kg beans = 2.5 L espresso
+for rel in ["src/components/settings/SettingsView.tsx","src/components/dashboard/DashboardView.tsx","src/components/production/ProductionView.tsx","src/components/accounts/AccountManagementView.tsx","src/components/reports/ReportsView.tsx","src/services/database.ts"]:
+    edit(rel, lambda s: s.replace("conversion_ratio: 3.0","conversion_ratio: 2.5")
+        .replace("conversion_ratio || 3.0","conversion_ratio || 2.5")
+        .replace("conversion_ratio ? currentShop.conversion_ratio.toString() : '3.0'","conversion_ratio ? currentShop.conversion_ratio.toString() : '2.5'")
+        .replace("parseFloat(conversionRatioInput) || 3.0","parseFloat(conversionRatioInput) || 2.5")
+        .replace("Default: 1 KG = 3.0 L.","Default: 1 KG = 2.5 L.")
+        .replace("'3.0'","'2.5'"))
+
+# Types
+p=root/"src/types/index.ts"; s=p.read_text()
+s=s.replace("conversion_ratio?: number; // Standard: 3 (1 kg beans = 3 L espresso)","conversion_ratio?: number; // Standard: 2.5 (1 kg beans = 2.5 L espresso)")
+s=s.replace("conversion_ratio: number; // e.g. 3.0 (3 Liter / 1 Kg)","conversion_ratio: number; // e.g. 2.5 (2.5 Liter / 1 Kg)")
+s=s.replace("  created_at: string;\n}\n\nexport interface ProductionLog","  created_at: string;\n  unit?: string;\n  price_per_qty?: number;\n  total_amount?: number;\n}\n\nexport interface IncomeEntry {\n  id: string; shop_id: string; item_id?: string; item_name: string;\n  quantity: number; unit: string; price_per_qty: number; total_amount: number;\n  source: string; reference_id?: string; recorded_by?: string; user_id?: string;\n  recorded_at: string; notes?: string;\n}\n\nexport interface ProductionLog")
+p.write_text(s)
+
+# Database: generic income generated from stock OUT
+p=root/"src/services/database.ts"; s=p.read_text()
+s=s.replace("  Expense,\n  TransactionType","  Expense,\n  IncomeEntry,\n  TransactionType")
+s=s.replace("const STORAGE_EXPENSES = 'bem_local_expenses';","const STORAGE_EXPENSES = 'bem_local_expenses';\nconst STORAGE_INCOME = 'bem_local_income';")
+s=s.replace("    user: { id: string; name: string };\n  }): Promise<{ item: InventoryItem; transaction: StockTransaction }>", "    user: { id: string; name: string };\n    price_per_qty?: number;\n    unit?: string;\n  }): Promise<{ item: InventoryItem; transaction: StockTransaction }>")
+s=s.replace("    notifyAllListeners();\n    return { item: updatedItem, transaction: tx };","    if (params.type === 'OUT' && Number(params.price_per_qty || 0) > 0) {\n      await this.recordIncome({ shop_id: params.shop_id, item_id: currentItem.id, item_name: currentItem.name,\n        quantity: qty, unit: params.unit || currentItem.unit, price_per_qty: Number(params.price_per_qty),\n        total_amount: Math.round(qty * Number(params.price_per_qty)), source: 'STOCK_OUT', reference_id: tx.id,\n        recorded_by: params.user.name, user_id: params.user.id, recorded_at: new Date().toISOString(), notes: params.notes || '' });\n    }\n    notifyAllListeners();\n    return { item: updatedItem, transaction: tx };")
+marker="  async getTransactions(shopId: string, itemId?: string, limit = 100): Promise<StockTransaction[]> {"
+income="""  async recordIncome(entry: Omit<IncomeEntry, 'id'>): Promise<IncomeEntry> {
+    const newEntry: IncomeEntry = { ...entry, id: generateId('income') };
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      const { error } = await supabase.from('income_entries').insert([newEntry]);
+      if (error) throw error;
+    }
+    const rows = getLocal<IncomeEntry[]>(STORAGE_INCOME, []);
+    rows.unshift(newEntry); setLocal(STORAGE_INCOME, rows);
+    return newEntry;
+  },
+
+  async getIncome(shopId: string, limit = 200): Promise<IncomeEntry[]> {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      const { data, error } = await supabase.from('income_entries').select('*').eq('shop_id', shopId)
+        .order('recorded_at', { ascending: false }).limit(limit);
+      if (!error && data) return data as IncomeEntry[];
+    }
+    return getLocal<IncomeEntry[]>(STORAGE_INCOME, []).filter(e => e.shop_id === shopId).slice(0, limit);
+  },
+
+"""
+if marker in s: s=s.replace(marker,income+marker)
+p.write_text(s)
+
+# Inventory: price per unit is required only for OUT, total becomes income
+p=root/"src/components/inventory/InventoryView.tsx"; s=p.read_text()
+s=s.replace("  const [movementQty, setMovementQty] = useState('');","  const [movementQty, setMovementQty] = useState('');\n  const [movementPrice, setMovementPrice] = useState('');")
+s=s.replace("    setMovementQty('');\n    setMovementNotes('');","    setMovementQty('');\n    setMovementPrice('');\n    setMovementNotes('');")
+s=s.replace("    if (movementType === 'OUT' && qty > movementTargetItem.current_stock) {","    const price = Number(movementPrice) || 0;\n    if (movementType === 'OUT' && price <= 0) {\n      setMovementError('Harga per ' + movementTargetItem.unit + ' wajib diisi untuk stok keluar.'); return;\n    }\n\n    if (movementType === 'OUT' && qty > movementTargetItem.current_stock) {")
+s=s.replace("        quantity: qty,\n        notes:", "        quantity: qty,\n        price_per_qty: movementType === 'OUT' ? price : undefined,\n        unit: movementTargetItem.unit,\n        notes:")
+needle="""              <div>
+                <label className="block text-xs font-medium text-[#C8BCB3] mb-1.5">
+                  Keterangan / Alasan"""
+pricebox="""              {movementType === 'OUT' && (
+                <div>
+                  <label className="block text-xs font-medium text-[#C8BCB3] mb-1.5">Harga per {movementTargetItem.unit} (Rp) *</label>
+                  <input type="number" min="0" step="any" value={movementPrice} onChange={(e) => setMovementPrice(e.target.value)}
+                    placeholder="Contoh: 100000" className="w-full px-3 py-2.5 bg-[#120F0D] border border-[#35281E] rounded-xl text-base font-mono text-[#E8DFD8] focus:outline-none focus:border-[#C5A059]" required />
+                  <div className="mt-1.5 text-xs text-emerald-400">Total pemasukan: Rp{((Number(movementQty)||0)*(Number(movementPrice)||0)).toLocaleString('id-ID')}</div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-medium text-[#C8BCB3] mb-1.5">
+                  Keterangan / Alasan"""
+s=s.replace(needle,pricebox)
+p.write_text(s)
+
+# Dashboard: load income and show today/month income
+p=root/"src/components/dashboard/DashboardView.tsx"; s=p.read_text()
+s=s.replace("  Expense,\n  IncomeEntry","  Expense,\n  IncomeEntry")
+s=s.replace("  const [expenses, setExpenses] = useState<Expense[]>([]);","  const [expenses, setExpenses] = useState<Expense[]>([]);\n  const [incomeEntries, setIncomeEntries] = useState<IncomeEntry[]>([]);")
+s=s.replace("const [itemList, txList, prodList, useList, wasteList, expList] = await Promise.all([","const [itemList, txList, prodList, useList, wasteList, expList, incomeList] = await Promise.all([")
+s=s.replace("        db.getExpenses(currentShop.id, 100),","        db.getExpenses(currentShop.id, 100),\n        db.getIncome(currentShop.id, 200),")
+s=s.replace("      setExpenses(expList);","      setExpenses(expList);\n      setIncomeEntries(incomeList);")
+s=s.replace("  // 8. Pengeluaran Bulan Berjalan","  const todayIncome = incomeEntries.filter(e => e.recorded_at.startsWith(todayStr)).reduce((sum,e) => sum + Number(e.total_amount), 0);\n  const currentMonthIncome = incomeEntries.filter(e => e.recorded_at.startsWith(currentMonthStr)).reduce((sum,e) => sum + Number(e.total_amount), 0);\n\n  // 8. Pengeluaran Bulan Berjalan")
+s=s.replace("          {/* 7. Pengeluaran Hari Ini */}","          {/* 7. Pemasukan Hari Ini */}\n          <div className=\"bg-[#0F172A]/70 backdrop-blur-md border border-white/10 rounded-2xl p-4 flex flex-col justify-between shadow-lg\"><div className=\"flex items-center justify-between text-slate-400 mb-1.5\"><span className=\"text-xs font-semibold uppercase\">7. Pemasukan Hari Ini</span><Coins className=\"w-4 h-4 text-emerald-400\" /></div><div><div className=\"text-xl sm:text-2xl font-bold font-mono text-emerald-400 truncate\">{formatRupiah(todayIncome)}</div><div className=\"text-[11px] text-slate-400 mt-0.5\">Dari stok keluar / penjualan</div></div></div>\n\n          {/* 8. Pemasukan Bulan Ini */}\n          <div className=\"bg-[#0F172A]/70 backdrop-blur-md border border-white/10 rounded-2xl p-4 flex flex-col justify-between shadow-lg\"><div className=\"flex items-center justify-between text-slate-400 mb-1.5\"><span className=\"text-xs font-semibold uppercase\">8. Pemasukan Bulan Ini</span><CreditCard className=\"w-4 h-4 text-cyan-400\" /></div><div><div className=\"text-xl sm:text-2xl font-bold font-mono text-cyan-400 truncate\">{formatRupiah(currentMonthIncome)}</div><div className=\"text-[11px] text-slate-400 mt-0.5\">Akumulasi pemasukan</div></div></div>\n\n          {/* 9. Pengeluaran Hari Ini */}")
+s=s.replace("          {/* 8. Pengeluaran Bulan Berjalan */}","          {/* 10. Pengeluaran Bulan Berjalan */}")
+s=s.replace("          {/* 9. HPP Espresso */}","          {/* 11. HPP Espresso */}")
+s=s.replace("<span>9 Ringkasan Metrik Bisnis & Finansial</span>","<span>11 Ringkasan Metrik Bisnis & Finansial</span>")
+p.write_text(s)
+
+print("BUSINESS_RULES_PATCH_DONE")
