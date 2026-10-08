@@ -1,45 +1,76 @@
-name: Extract application source
+name: Build and deploy Beans & Espresso Manager
 
 on:
-  workflow_dispatch:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
 
 jobs:
-  extract:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Extract ZIP
+      - uses: actions/checkout@v6
+
+      - name: Extract application source
         run: |
           set -e
-          rm -rf /tmp/app
-          mkdir -p /tmp/app
-          unzip -q "beans-&-espresso-manager.zip" -d /tmp/app
-          echo "ZIP CONTENT:"
-          find /tmp/app -maxdepth 3 -type f | sort | head -200
-          echo "TOP LEVEL:"
-          find /tmp/app -mindepth 1 -maxdepth 1 -printf '%f\n' | sort
-      - name: Commit extracted source
-        run: |
-          set -e
-          rm -rf /tmp/app/.git
-          shopt -s dotglob
-          cp -a /tmp/app/. .
-          rm -rf .git
-          git init
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git fetch origin main
-          git reset --mixed origin/main
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No extracted source changes."
-            exit 0
-          fi
-          git commit -m "chore: extract application source"
-          git push origin HEAD:main
+          rm -rf app
+          mkdir app
+          unzip -q "beans-&-espresso-manager.zip" -d app
+          echo "=== package.json ==="
+          cat app/package.json
+          echo "=== .env.example ==="
+          cat app/.env.example || true
+          echo "=== supabaseClient.ts ==="
+          cat app/src/services/supabaseClient.ts
+          echo "=== database.ts ==="
+          cat app/src/services/database.ts
+          echo "=== AuthContext.tsx ==="
+          cat app/src/context/AuthContext.tsx
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: app/package.json
+
+      - name: Install dependencies
+        working-directory: app
+        run: npm install --no-audit --no-fund
+
+      - name: Build web
+        working-directory: app
+        env:
+          VITE_SUPABASE_URL: https://dhgkscdwzhupfiacsxxi.supabase.co
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: npm run build
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: app/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
