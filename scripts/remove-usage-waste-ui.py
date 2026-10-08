@@ -56,6 +56,11 @@ p = p.replace("  ArrowRight,\n", "")
 p = p.replace("  Flame,\n", "")
 p = p.replace("  MinusCircle\n", "")
 
+p = p.replace("""      if (espressos.length > 0 && !usageEspressoId) {
+        setUsageEspressoId(espressos[0].id);
+      }
+""", "")
+p = re.sub(r"\n\s*\{?/\* 4\. Susut / Waste Ekstraksi \(Opsional\) \*/\}.*?\n\s*\{?/\* 5\. Catatan Batch", "\n\n              {/* 4. Catatan Batch", p, flags=re.S)
 write("src/components/production/ProductionView.tsx", p)
 
 # Dashboard: remove Pemakaian and Waste metrics/data. Keep production, stock, income and expenses.
@@ -69,6 +74,7 @@ p = re.sub(r"\n\s*setUsages\(useList\);\n\s*setWasteLogs\(wasteList\);", "", p)
 p = re.sub(r"\n\s*// 5\. Pemakaian Hari Ini.*?\n\s*// 7\. Pengeluaran Hari Ini", "\n\n  // 5. Pengeluaran Hari Ini", p, flags=re.S)
 p = re.sub(r"\n\s*// 6\. Waste Hari Ini.*?\n\s*// 7\. Pengeluaran Hari Ini", "\n\n  // 5. Pengeluaran Hari Ini", p, flags=re.S)
 p = p.replace("Produksi, Pemakaian, Waste, dan HPP", "Produksi dan HPP")
+p = re.sub(r"\n\s*\{?/\* 5\. Pemakaian Hari Ini \*/\}.*?\n\s*\{?/\* 7\. Pemasukan Hari Ini \*/\}", "\n\n          {/* 5. Pemasukan Hari Ini */}", p, flags=re.S)
 write("src/components/dashboard/DashboardView.tsx", p)
 
 # Reports: remove Pemakaian/Waste metrics, data loading, and Waste detail tab.
@@ -88,6 +94,7 @@ p = re.sub(r"\n\s*\{?/\* 6\. Waste / Susut \*/\}.*?\n\s*\{?/\* 7\. Total Pengelu
 p = re.sub(r"\n\s*\{?/\* 7\. Total Pengeluaran", "\n\n        {/* 5. Total Pengeluaran", p)
 p = re.sub(r"\n\s*<button\s*\n\s*onClick=\{\(\) => setActiveDetailTab\('waste'\)\}.*?</button>", "", p, flags=re.S)
 p = re.sub(r"\n\s*\{activeDetailTab === 'waste' && \(.*?\n\s*\)\}", "", p, flags=re.S)
+p = re.sub(r"\n\s*const totalEspressoUsedL = .*?;\n\s*const totalWasteProdL = .*?;\n\s*const totalWasteLogL = .*?;\n\s*const totalWasteBeansKg = .*?;\n\s*const totalWasteLossRp = .*?;", "", p, flags=re.S)
 write("src/components/reports/ReportsView.tsx", p)
 
 print("REMOVED PEMAKAIAN AND WASTE UI")
