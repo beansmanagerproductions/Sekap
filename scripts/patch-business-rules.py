@@ -79,7 +79,7 @@ p.write_text(s)
 
 # Dashboard: load income and show today/month income
 p=root/"src/components/dashboard/DashboardView.tsx"; s=p.read_text()
-s=s.replace("  Expense,\n  IncomeEntry","  Expense,\n  IncomeEntry")
+s=s.replace("  WasteLog,\n  Expense \n", "  WasteLog,\n  Expense,\n  IncomeEntry\n")
 s=s.replace("  const [expenses, setExpenses] = useState<Expense[]>([]);","  const [expenses, setExpenses] = useState<Expense[]>([]);\n  const [incomeEntries, setIncomeEntries] = useState<IncomeEntry[]>([]);")
 s=s.replace("const [itemList, txList, prodList, useList, wasteList, expList] = await Promise.all([","const [itemList, txList, prodList, useList, wasteList, expList, incomeList] = await Promise.all([")
 s=s.replace("        db.getExpenses(currentShop.id, 100),","        db.getExpenses(currentShop.id, 100),\n        db.getIncome(currentShop.id, 200),")
