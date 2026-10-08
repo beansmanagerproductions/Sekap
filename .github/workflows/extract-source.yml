@@ -1,0 +1,45 @@
+name: Extract application source
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract ZIP
+        run: |
+          set -e
+          rm -rf /tmp/app
+          mkdir -p /tmp/app
+          unzip -q "beans-&-espresso-manager.zip" -d /tmp/app
+          echo "ZIP CONTENT:"
+          find /tmp/app -maxdepth 3 -type f | sort | head -200
+          echo "TOP LEVEL:"
+          find /tmp/app -mindepth 1 -maxdepth 1 -printf '%f\n' | sort
+      - name: Commit extracted source
+        run: |
+          set -e
+          rm -rf /tmp/app/.git
+          shopt -s dotglob
+          cp -a /tmp/app/. .
+          rm -rf .git
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch origin main
+          git reset --mixed origin/main
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No extracted source changes."
+            exit 0
+          fi
+          git commit -m "chore: extract application source"
+          git push origin HEAD:main
