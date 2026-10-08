@@ -28,12 +28,16 @@ s=s.replace("    user: { id: string; name: string };\n  }): Promise<{ item: Inve
 s=s.replace("    notifyAllListeners();\n    return { item: updatedItem, transaction: tx };","    if (params.type === 'OUT' && currentItem.name.trim().toLowerCase() === 'espresso') {\n      const fixedPricePerLiter = 150000;\n      await this.recordIncome({ shop_id: params.shop_id, item_id: currentItem.id, item_name: currentItem.name,\n        quantity: qty, unit: 'L', price_per_qty: fixedPricePerLiter,\n        total_amount: Math.round(qty * fixedPricePerLiter), source: 'STOCK_OUT', reference_id: tx.id,\n        recorded_by: params.user.name, user_id: params.user.id, recorded_at: new Date().toISOString(), notes: params.notes || '' });\n    }\n    notifyAllListeners();\n    return { item: updatedItem, transaction: tx };")
 marker="  async getTransactions(shopId: string, itemId?: string, limit = 100): Promise<StockTransaction[]> {"
 income="""  async recordIncome(entry: Omit<IncomeEntry, 'id'>): Promise<IncomeEntry> {
-    const newEntry: IncomeEntry = { ...entry, id: generateId('income') };
     const supabase = getSupabaseClient();
     if (supabase) {
-      const { error } = await supabase.from('income_entries').insert([newEntry]);
+      const { data, error } = await supabase.from('income_entries').insert([entry]).select().single();
       if (error) throw error;
+      const savedEntry = data as IncomeEntry;
+      const rows = getLocal<IncomeEntry[]>(STORAGE_INCOME, []);
+      rows.unshift(savedEntry); setLocal(STORAGE_INCOME, rows);
+      return savedEntry;
     }
+    const newEntry: IncomeEntry = { ...entry, id: crypto.randomUUID() };
     const rows = getLocal<IncomeEntry[]>(STORAGE_INCOME, []);
     rows.unshift(newEntry); setLocal(STORAGE_INCOME, rows);
     return newEntry;
