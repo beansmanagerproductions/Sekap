@@ -36,6 +36,8 @@ jobs:
         run: python scripts/patch-business-rules.py
       - name: Fix Espresso income condition
         run: python scripts/fix-espresso-income.py
+      - name: Remove Pemakaian and Waste UI
+        run: python scripts/remove-usage-waste-ui.py
 
       - name: Inspect application structure
         run: |
