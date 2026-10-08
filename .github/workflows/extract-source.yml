@@ -36,6 +36,22 @@ jobs:
           cat app/vite.config.ts
           echo "=== VITE ==="
           sed -i "/return {/a\\    base: './'," app/vite.config.ts
+          echo "=== APP ICON ==="
+          mkdir -p app/public
+          cat > app/public/beans-espresso-icon.svg <<'SVG'
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#17120f"/><path d="M128 174h238c12 0 22 10 22 22v76c0 88-71 159-159 159h-42c-88 0-159-71-159-159v-76c0-12 10-22 22-22h38z" fill="none" stroke="#d7a86e" stroke-width="30"/><path d="M388 207h24c48 0 76 28 76 70s-28 70-76 70h-27" fill="none" stroke="#d7a86e" stroke-width="28"/><path d="M160 112c-18 25-18 42 0 58M224 112c-18 25-18 42 0 58M288 112c-18 25-18 42 0 58" fill="none" stroke="#d7a86e" stroke-width="24" stroke-linecap="round"/><path d="M142 270h204" stroke="#fff4e6" stroke-width="18" stroke-linecap="round"/></svg>
+SVG
+          cat > app/public/site.webmanifest <<'JSON'
+{"name":"Beans & Espresso Manager","short_name":"Beans Espresso","start_url":"./","display":"standalone","background_color":"#17120f","theme_color":"#17120f","icons":[{"src":"./beans-espresso-icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
+JSON
+          python - <<'PY'
+from pathlib import Path
+p=Path("app/index.html")
+s=p.read_text()
+if 'site.webmanifest' not in s:
+    s=s.replace('</head>','  <link rel="manifest" href="./site.webmanifest">\n  <link rel="icon" href="./beans-espresso-icon.svg" type="image/svg+xml">\n</head>')
+p.write_text(s)
+PY
           echo "=== TYPES ==="
           cat app/src/types/index.ts
           echo "=== TABLE REFERENCES ==="
