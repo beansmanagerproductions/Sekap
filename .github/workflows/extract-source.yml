@@ -40,6 +40,11 @@ jobs:
           cat app/package.json
           echo "=== SUPABASE REFERENCES ==="
           grep -RIl "supabase" app/src --include='*.ts' --include='*.tsx' 2>/dev/null | head -50 || true
+          echo "=== KEY SOURCE ==="
+          for f in app/src/components/inventory/InventoryView.tsx app/src/components/dashboard/DashboardView.tsx app/src/components/production/ProductionView.tsx app/src/services/database.ts app/src/types/index.ts app/src/App.tsx; do
+            echo "--- $f ---"
+            sed -n '1,260p' "$f"
+          done
 
       - name: Setup Node
         uses: actions/setup-node@v6
