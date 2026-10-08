@@ -25,7 +25,7 @@ p=root/"src/services/database.ts"; s=p.read_text()
 s=s.replace("  Expense,\n  TransactionType","  Expense,\n  IncomeEntry,\n  TransactionType")
 s=s.replace("const STORAGE_EXPENSES = 'bem_local_expenses';","const STORAGE_EXPENSES = 'bem_local_expenses';\nconst STORAGE_INCOME = 'bem_local_income';")
 s=s.replace("    user: { id: string; name: string };\n  }): Promise<{ item: InventoryItem; transaction: StockTransaction }>", "    user: { id: string; name: string };\n    price_per_qty?: number;\n    unit?: string;\n  }): Promise<{ item: InventoryItem; transaction: StockTransaction }>")
-s=s.replace("    notifyAllListeners();\n    return { item: updatedItem, transaction: tx };","    if (params.type === 'OUT' && Number(params.price_per_qty || 0) > 0) {\n      await this.recordIncome({ shop_id: params.shop_id, item_id: currentItem.id, item_name: currentItem.name,\n        quantity: qty, unit: params.unit || currentItem.unit, price_per_qty: Number(params.price_per_qty),\n        total_amount: Math.round(qty * Number(params.price_per_qty)), source: 'STOCK_OUT', reference_id: tx.id,\n        recorded_by: params.user.name, user_id: params.user.id, recorded_at: new Date().toISOString(), notes: params.notes || '' });\n    }\n    notifyAllListeners();\n    return { item: updatedItem, transaction: tx };")
+s=s.replace("    notifyAllListeners();\n    return { item: updatedItem, transaction: tx };","    if (params.type === 'OUT' && currentItem.name.trim().toLowerCase() === 'espresso') {\n      const fixedPricePerLiter = 150000;\n      await this.recordIncome({ shop_id: params.shop_id, item_id: currentItem.id, item_name: currentItem.name,\n        quantity: qty, unit: 'L', price_per_qty: fixedPricePerLiter,\n        total_amount: Math.round(qty * fixedPricePerLiter), source: 'STOCK_OUT', reference_id: tx.id,\n        recorded_by: params.user.name, user_id: params.user.id, recorded_at: new Date().toISOString(), notes: params.notes || '' });\n    }\n    notifyAllListeners();\n    return { item: updatedItem, transaction: tx };")
 marker="  async getTransactions(shopId: string, itemId?: string, limit = 100): Promise<StockTransaction[]> {"
 income="""  async recordIncome(entry: Omit<IncomeEntry, 'id'>): Promise<IncomeEntry> {
     const newEntry: IncomeEntry = { ...entry, id: generateId('income') };
@@ -53,28 +53,12 @@ income="""  async recordIncome(entry: Omit<IncomeEntry, 'id'>): Promise<IncomeEn
 if marker in s: s=s.replace(marker,income+marker)
 p.write_text(s)
 
-# Inventory: price per unit is required only for OUT, total becomes income
+# Inventory: fixed-price Espresso stock-out; no manual price field
 p=root/"src/components/inventory/InventoryView.tsx"; s=p.read_text()
-s=s.replace("  const [movementQty, setMovementQty] = useState('');","  const [movementQty, setMovementQty] = useState('');\n  const [movementPrice, setMovementPrice] = useState('');")
-s=s.replace("    setMovementQty('');\n    setMovementNotes('');","    setMovementQty('');\n    setMovementPrice('');\n    setMovementNotes('');")
-s=s.replace("    if (movementType === 'OUT' && qty > movementTargetItem.current_stock) {","    const price = Number(movementPrice) || 0;\n    if (movementType === 'OUT' && price <= 0) {\n      setMovementError('Harga per ' + movementTargetItem.unit + ' wajib diisi untuk stok keluar.'); return;\n    }\n\n    if (movementType === 'OUT' && qty > movementTargetItem.current_stock) {")
-s=s.replace("        quantity: qty,\n        notes:", "        quantity: qty,\n        price_per_qty: movementType === 'OUT' ? price : undefined,\n        unit: movementTargetItem.unit,\n        notes:")
-needle="""              <div>
-                <label className="block text-xs font-medium text-[#C8BCB3] mb-1.5">
-                  Keterangan / Alasan"""
-pricebox="""              {movementType === 'OUT' && (
-                <div>
-                  <label className="block text-xs font-medium text-[#C8BCB3] mb-1.5">Harga per {movementTargetItem.unit} (Rp) *</label>
-                  <input type="number" min="0" step="any" value={movementPrice} onChange={(e) => setMovementPrice(e.target.value)}
-                    placeholder="Contoh: 100000" className="w-full px-3 py-2.5 bg-[#120F0D] border border-[#35281E] rounded-xl text-base font-mono text-[#E8DFD8] focus:outline-none focus:border-[#C5A059]" required />
-                  <div className="mt-1.5 text-xs text-emerald-400">Total pemasukan: Rp{((Number(movementQty)||0)*(Number(movementPrice)||0)).toLocaleString('id-ID')}</div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-medium text-[#C8BCB3] mb-1.5">
-                  Keterangan / Alasan"""
-s=s.replace(needle,pricebox)
+s=s.replace("  const [movementQty, setMovementQty] = useState('');","  const [movementQty, setMovementQty] = useState('');")
+s=s.replace("    setMovementQty('');\n    setMovementNotes('');","    setMovementQty('');\n    setMovementNotes('');")
+s=s.replace("    if (movementType === 'OUT' && qty > movementTargetItem.current_stock) {","    if (movementType === 'OUT' && qty > movementTargetItem.current_stock) {")
+s=s.replace("        quantity: qty,\n        notes:", "        quantity: qty,\n        unit: movementTargetItem.unit,\n        notes:")
 p.write_text(s)
 
 # Dashboard: load income and show today/month income
