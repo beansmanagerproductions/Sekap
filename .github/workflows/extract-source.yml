@@ -26,99 +26,11 @@ jobs:
           rm -rf app
           mkdir app
           unzip -q "beans-&-espresso-manager.zip" -d app
-          echo "=== APP FILES ==="
-          find app -maxdepth 3 -type f | sort
-          echo "=== INDEX ==="
-          cat app/index.html
-          echo "=== MAIN ==="
-          cat app/src/main.tsx
-          echo "=== VITE ==="
-          cat app/vite.config.ts
-          echo "=== VITE ==="
           sed -i "/return {/a\\    base: './'," app/vite.config.ts
-          echo "=== APP ICON ==="
           mkdir -p app/public
-          cat > app/public/beans-espresso-icon.svg <<'SVG'
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#17120f"/><path d="M128 174h238c12 0 22 10 22 22v76c0 88-71 159-159 159h-42c-88 0-159-71-159-159v-76c0-12 10-22 22-22h38z" fill="none" stroke="#d7a86e" stroke-width="30"/><path d="M388 207h24c48 0 76 28 76 70s-28 70-76 70h-27" fill="none" stroke="#d7a86e" stroke-width="28"/><path d="M160 112c-18 25-18 42 0 58M224 112c-18 25-18 42 0 58M288 112c-18 25-18 42 0 58" fill="none" stroke="#d7a86e" stroke-width="24" stroke-linecap="round"/><path d="M142 270h204" stroke="#fff4e6" stroke-width="18" stroke-linecap="round"/></svg>
-SVG
-          cat > app/public/site.webmanifest <<'JSON'
-{"name":"Beans & Espresso Manager","short_name":"Beans Espresso","start_url":"./","display":"standalone","background_color":"#17120f","theme_color":"#17120f","icons":[{"src":"./beans-espresso-icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
-JSON
-          python - <<'PY'
-from pathlib import Path
-p=Path("app/index.html")
-s=p.read_text()
-if 'site.webmanifest' not in s:
-    s=s.replace('</head>','  <link rel="manifest" href="./site.webmanifest">\n  <link rel="icon" href="./beans-espresso-icon.svg" type="image/svg+xml">\n</head>')
-p.write_text(s)
-PY
-          echo "=== TYPES ==="
-          cat app/src/types/index.ts
-          echo "=== TABLE REFERENCES ==="
-          grep -RhoE "from\([[:space:]]*[\x27\x22][^\x27\x22]+[\x27\x22]" app/src | sort -u || true
-          echo "=== DATABASE ==="
-          cat app/src/services/database.ts
-          echo "=== package.json ==="
-          cat app/package.json
-          echo "=== .env.example ==="
-          cat app/.env.example || true
-          echo "=== supabaseClient.ts ==="
-          cat app/src/services/supabaseClient.ts
-          echo "=== database.ts ==="
-          cat app/src/services/database.ts
-          echo "=== AuthContext.tsx ==="
-          cat app/src/context/AuthContext.tsx
-
-      - name: Install Beans & Espresso Manager icon and PWA metadata
-        working-directory: app
-        run: |
-          set -e
-          mkdir -p public
-          cat > public/beans-espresso-icon.svg <<'EOF'
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#6F3E22"/>
-      <stop offset="1" stop-color="#24130D"/>
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="112" fill="url(#g)"/>
-  <circle cx="256" cy="256" r="166" fill="#F4E7D7"/>
-  <path d="M256 105c-72 0-126 65-126 151s54 151 126 151 126-65 126-151-54-151-126-151Z" fill="#4A2415"/>
-  <path d="M268 119c-38 58-43 124-25 185 15 49 11 81-10 101 49-11 88-64 88-149 0-62-20-108-53-137Z" fill="#8B542F"/>
-  <path d="M207 174c-25 34-32 80-23 125 8 38 5 66-9 86 34-18 54-59 54-113 0-39-8-72-22-98Z" fill="#C47A42"/>
-  <path d="M142 356c37 30 78 45 114 45 48 0 89-18 116-52-24 56-68 87-116 87-49 0-91-28-114-80Z" fill="#E8CBAE"/>
-</svg>
-EOF
-          if command -v convert >/dev/null 2>&1; then
-            convert -background none public/beans-espresso-icon.svg -resize 192x192 public/icon-192.png
-            convert -background none public/beans-espresso-icon.svg -resize 512x512 public/icon-512.png
-          else
-            echo "ImageMagick not available; SVG icon remains available."
-          fi
-          cat > public/manifest.webmanifest <<'EOF'
-{
-  "name": "Beans & Espresso Manager",
-  "short_name": "Beans Manager",
-  "start_url": "./",
-  "display": "standalone",
-  "background_color": "#24130D",
-  "theme_color": "#4A2415",
-  "description": "Manajemen produksi, stok, penjualan espresso dan laporan coffee shop.",
-  "icons": [
-    {"src":"./icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
-    {"src":"./icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"},
-    {"src":"./beans-espresso-icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}
-  ]
-}
-EOF
-          if ! grep -q 'manifest.webmanifest' index.html; then
-            sed -i 's#</head>#<link rel="icon" href="./beans-espresso-icon.svg" type="image/svg+xml"><link rel="manifest" href="./manifest.webmanifest"><meta name="theme-color" content="#4A2415"></head>#' index.html
-          fi
-          cp public/beans-espresso-icon.svg public/favicon.svg
-          echo "=== ICON/PWA ==="
-          ls -lh public/beans-espresso-icon.svg public/favicon.svg public/icon-192.png public/icon-512.png public/manifest.webmanifest 2>/dev/null || true
-
+          printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#17120f"/><circle cx="256" cy="256" r="166" fill="#f4e7d7"/><path d="M256 105c-72 0-126 65-126 151s54 151 126 151 126-65 126-151-54-151-126-151Z" fill="#4a2415"/><path d="M268 119c-38 58-43 124-25 185 15 49 11 81-10 101 49-11 88-64 88-149 0-62-20-108-53-137Z" fill="#8b542f"/><path d="M207 174c-25 34-32 80-23 125 8 38 5 66-9 86 34-18 54-59 54-113 0-39-8-72-22-98Z" fill="#c47a42"/></svg>' > app/public/beans-espresso-icon.svg
+          printf '%s' '{"name":"Beans & Espresso Manager","short_name":"Beans Manager","start_url":"./","display":"standalone","background_color":"#17120f","theme_color":"#4a2415","icons":[{"src":"./beans-espresso-icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}' > app/public/manifest.webmanifest
+          python -c 'from pathlib import Path; p=Path("app/index.html"); s=p.read_text(); s=s.replace("</head>", "<link rel=\"icon\" href=\"./beans-espresso-icon.svg\" type=\"image/svg+xml\"><link rel=\"manifest\" href=\"./manifest.webmanifest\"></head>") if "manifest.webmanifest" not in s else s; p.write_text(s)'
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
