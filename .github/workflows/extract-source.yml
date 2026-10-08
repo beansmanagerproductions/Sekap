@@ -34,6 +34,9 @@ jobs:
 
       - name: Apply business rules patch
         run: python scripts/patch-business-rules.py
+      - name: Fix Espresso income condition
+        run: python scripts/fix-espresso-income.py
+
       - name: Inspect application structure
         run: |
           set -e
