@@ -65,6 +65,13 @@ write("src/components/production/ProductionView.tsx", p)
 
 # Dashboard: remove Pemakaian and Waste metrics/data. Keep production, stock, income and expenses.
 p = read("src/components/dashboard/DashboardView.tsx")
+p = re.sub(r"const \[itemList, txList, prodList,.*?= await Promise\.all\(\[.*?\n\s*\]\);", """const [itemList, txList, prodList, expList, incomeList] = await Promise.all([
+        db.getInventory(currentShop.id),
+        db.getTransactions(currentShop.id, undefined, 10),
+        db.getProductions(currentShop.id, 50),
+        db.getExpenses(currentShop.id, 100),
+        db.getIncome(currentShop.id, 200),
+      ]);""", p, flags=re.S)
 p = p.replace("  EspressoUsageLog,\n", "").replace("  WasteLog,\n", "")
 p = re.sub(r"\n\s*const \[usages, setUsages\].*?;", "", p)
 p = re.sub(r"\n\s*const \[wasteLogs, setWasteLogs\].*?;", "", p)
@@ -81,6 +88,12 @@ write("src/components/dashboard/DashboardView.tsx", p)
 
 # Reports: remove Pemakaian/Waste metrics, data loading, and Waste detail tab.
 p = read("src/components/reports/ReportsView.tsx")
+p = re.sub(r"const \[itemList, txList, prodList,.*?= await Promise\.all\(\[.*?\n\s*\]\);", """const [itemList, txList, prodList, expList] = await Promise.all([
+        db.getInventory(currentShop.id),
+        db.getTransactions(currentShop.id, undefined, 500),
+        db.getProductions(currentShop.id, 300),
+        db.getExpenses(currentShop.id, 500),
+      ]);""", p, flags=re.S)
 p = p.replace("  EspressoUsageLog, \n", "").replace("  WasteLog, \n", "")
 p = p.replace("type DetailTabType = 'transactions' | 'productions' | 'expenses' | 'waste';", "type DetailTabType = 'transactions' | 'productions' | 'expenses';")
 p = re.sub(r"\n\s*const \[usages, setUsages\].*?;\n\s*const \[wasteLogs, setWasteLogs\].*?;", "", p)
