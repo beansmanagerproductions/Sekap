@@ -28,6 +28,12 @@ jobs:
           unzip -q "beans-&-espresso-manager.zip" -d app
           echo "=== APP FILES ==="
           find app -maxdepth 3 -type f | sort
+          echo "=== INDEX ==="
+          cat app/index.html
+          echo "=== MAIN ==="
+          cat app/src/main.tsx
+          echo "=== VITE ==="
+          cat app/vite.config.ts
           echo "=== TYPES ==="
           cat app/src/types/index.ts
           echo "=== TABLE REFERENCES ==="
