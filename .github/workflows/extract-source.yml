@@ -34,6 +34,10 @@ jobs:
           cat app/src/main.tsx
           echo "=== VITE ==="
           cat app/vite.config.ts
+          echo "=== DIST ==="
+          find app/dist -maxdepth 2 -type f -print | sort
+          echo "=== DIST INDEX ==="
+          cat app/dist/index.html
           echo "=== TYPES ==="
           cat app/src/types/index.ts
           echo "=== TABLE REFERENCES ==="
