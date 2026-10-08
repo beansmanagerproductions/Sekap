@@ -28,8 +28,8 @@ p = re.sub(r"\n\s*setProdWasteLiter\('0'\);", "", p)
 # Remove handlers for usage and waste.
 p = re.sub(r"\n\s*// Handle Submit Espresso Usage.*?\n\s*const formatRupiah", "\n\n  const formatRupiah", p, flags=re.S)
 
-# Remove production waste input.
-p = re.sub(r"\n\s*\{?/\* 4\. Susut / Waste Ekstraksi.*?\n\s*\}\n\n\s*\{?/\* 5\. Catatan Batch", "\n\n              {/* 4. Catatan Batch", p, flags=re.S)
+# Remove production waste input using its stable label marker.
+p = re.sub(r"\n\s*\{?/\* 4\. Susut / Waste Ekstraksi.*?\n\s*\{?/\* 5\. Catatan Batch", "\n\n              {/* 4. Catatan Batch", p, flags=re.S)
 
 # Remove the sub-navigation block.
 p = re.sub(r"\n\s*\{?/\* Sub Navigation Segmented Tabs \*/\}.*?\n\s*</div>\n\s*</div>\n\n\s*\{?/\* =========================================================================\s*\n\s*SUB-TAB 1:", "\n      </div>\n\n      {/* =========================================================================\n          SUB-TAB 1:", p, flags=re.S)
@@ -79,8 +79,9 @@ p = re.sub(r"\n\s*const \[usages, setUsages\].*?;\n\s*const \[wasteLogs, setWast
 p = re.sub(r",\s*useList,\s*wasteList", "", p)
 p = re.sub(r"\n\s*db\.getEspressoUsages\(currentShop\.id, 300\),\n\s*db\.getWasteLogs\(currentShop\.id, 300\)", "", p)
 p = re.sub(r"\n\s*setWasteLogs\(wasteList\);", "", p)
+p = p.replace("      setUsages(useList);\n", "")
 p = re.sub(r"\n\s*const filteredUsages = usages\.filter\(.*?\);\n\s*const filteredWasteLogs = wasteLogs\.filter\(.*?\);", "", p)
-p = re.sub(r"\n\s*const totalEspressoUsedL = filteredUsages\.reduce\(.*?\);\n\s*const totalWasteProdL = .*?\n\s*const totalWasteLogL = .*?\n\s*const totalWasteBeansKg = .*?\n\s*const totalWasteLossRp = .*?;", "", p, flags=re.S)
+p = re.sub(r"\n\s*// 3\. Espresso Digunakan.*?\n\s*// 5\. Total Pengeluaran", "\n\n  // 3. Total Pengeluaran", p, flags=re.S)
 p = p.replace("Rekap stok beans, produksi espresso, pemakaian, waste, HPP, dan pengeluaran per periode.", "Rekap stok beans, produksi espresso, HPP, dan pengeluaran per periode.")
 p = re.sub(r"\n\s*\{?/\* 5\. Espresso Digunakan \*/\}.*?\n\s*\{?/\* 7\. Total Pengeluaran", "\n\n        {/* 5. Total Pengeluaran", p, flags=re.S)
 p = re.sub(r"\n\s*\{?/\* 6\. Waste / Susut \*/\}.*?\n\s*\{?/\* 7\. Total Pengeluaran", "\n\n        {/* 5. Total Pengeluaran", p, flags=re.S)
